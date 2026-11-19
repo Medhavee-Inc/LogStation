@@ -42,7 +42,7 @@ tasks:
     desc: Build a standalone binary for the current machine
     cmds:
       - mkdir -p dist
-      - '{{.PYTHON}} -m PyInstaller --clean --onefile --name "logStation-{{.PLATFORM}}" --add-data "web:web" --distpath dist logstation.py'
+      - 'VERSION=$(cat VERSION 2>/dev/null || echo "0.1.0"); {{.PYTHON}} -m PyInstaller --clean --onefile --name "logStation-{{.PLATFORM}}-$VERSION" --add-data "web:web" --distpath dist logstation.py'
 
   release:
     desc: Bump version, build, commit, tag, push, and publish a GitHub release
@@ -58,4 +58,4 @@ tasks:
       - 'git commit -m "Release v$(cat VERSION)"'
       - 'git tag "v$(cat VERSION)"'
       - git push origin HEAD --follow-tags
-      - 'gh release create "v$(cat VERSION)" "dist/logStation-{{.PLATFORM}}" --title "LogStation v$(cat VERSION)" --generate-notes'
+      - 'gh release create "v$(cat VERSION)" "dist/logStation-{{.PLATFORM}}-$(cat VERSION)" --title "LogStation v$(cat VERSION)" --generate-notes'
