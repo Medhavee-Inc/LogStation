@@ -1,0 +1,61 @@
+version: '3'
+
+vars:
+  PYTHON: python3
+  BUMP: patch
+  PLATFORM:
+    sh: python3 -c "import platform; m=platform.machine().lower(); print({'x86_64':'x86-64','amd64':'x86-64','aarch64':'arm64','arm64':'arm64'}.get(m, m))"
+
+tasks:
+  bump:
+    desc: Bump VERSION (override with BUMP=minor or BUMP=major)
+    cmds:
+      - |
+        {{.PYTHON}} - "{{.BUMP}}" <<'PY'
+        from pathlib import Path
+        import re
+        import sys
+
+        path = Path("VERSION")
+        current = path.read_text().strip() if path.exists() else "0.1.0"
+        match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", current)
+        if not match:
+            raise SystemExit(f"Invalid VERSION: {current!r}; expected MAJOR.MINOR.PATCH")
+
+        major, minor, patch = map(int, match.groups())
+        bump = sys.argv[1]
+        if bump == "major":
+            major, minor, patch = major + 1, 0, 0
+        elif bump == "minor":
+            minor, patch = minor + 1, 0
+        elif bump == "patch":
+            patch += 1
+        else:
+            raise SystemExit("BUMP must be patch, minor, or major")
+
+        version = f"{major}.{minor}.{patch}"
+        path.write_text(version + "\n")
+        print(f"VERSION: {current} -> {version}")
+        PY
+
+  build:
+    desc: Build a standalone binary for the current machine
+    cmds:
+      - mkdir -p dist
+      - '{{.PYTHON}} -m PyInstaller --clean --onefile --name "logStation-{{.PLATFORM}}" --add-data "web:web" --distpath dist logstation.py'
+
+  release:
+    desc: Bump version, build, commit, tag, push, and publish a GitHub release
+    cmds:
+      - |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Release requires a clean working tree." >&2
+          exit 1
+        fi
+      - task: bump
+      - task: build
+      - git add VERSION
+      - 'git commit -m "Release v$(cat VERSION)"'
+      - 'git tag "v$(cat VERSION)"'
+      - git push origin HEAD --follow-tags
+      - 'gh release create "v$(cat VERSION)" "dist/logStation-{{.PLATFORM}}" --title "LogStation v$(cat VERSION)" --generate-notes'
