@@ -11,6 +11,7 @@ let activeSource = null;
 let activeFile = null;
 let refreshTimer = null;
 let paused = false;
+let wrapLines = localStorage.getItem("logstation-wrap-lines") === "true";
 let latestLogs = "";
 let toastTimer = null;
 let passwordSourceId = null;
@@ -246,6 +247,7 @@ function showHome() {
   refreshTimer = null;
   activeSource = null;
   activeFile = null;
+  $("#main-content").classList.remove("viewer-active");
   $("#home-view").classList.remove("hidden");
   $("#viewer-view").classList.add("hidden");
 }
@@ -264,6 +266,7 @@ async function openSource(source) {
   paused = false;
   $("#pause-logs").innerHTML = "<span>Ⅱ</span> Pause";
   $("#pause-logs").classList.remove("paused");
+  $("#main-content").classList.add("viewer-active");
   $("#home-view").classList.add("hidden");
   $("#viewer-view").classList.remove("hidden");
   $("#viewer-title").textContent = source.name;
@@ -378,7 +381,7 @@ function renderLogs(text) {
     return;
   }
   const wrapper = document.createElement("div");
-  wrapper.className = "log-lines";
+  wrapper.className = `log-lines${wrapLines ? " wrap-lines" : ""}`;
   for (const { value, index } of lines) {
     const row = document.createElement("div");
     row.className = "log-line";
@@ -452,6 +455,13 @@ $("#pause-logs").addEventListener("click", () => {
   $("#pause-logs").innerHTML = paused ? "<span>▶</span> Resume" : "<span>Ⅱ</span> Pause";
   if (!paused) refreshLogs();
 });
+$("#wrap-lines").addEventListener("click", (event) => {
+  wrapLines = !wrapLines;
+  localStorage.setItem("logstation-wrap-lines", String(wrapLines));
+  event.currentTarget.setAttribute("aria-pressed", String(wrapLines));
+  event.currentTarget.classList.toggle("active", wrapLines);
+  renderLogs(latestLogs);
+});
 $("#close-password-modal").addEventListener("click", () => $("#password-backdrop").classList.add("hidden"));
 $("#password-form").addEventListener("submit", savePassword);
 modalBackdrop.addEventListener("click", (event) => {
@@ -468,4 +478,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 setTheme(localStorage.getItem("logstation-theme") || "dark");
+$("#wrap-lines").setAttribute("aria-pressed", String(wrapLines));
+$("#wrap-lines").classList.toggle("active", wrapLines);
 loadSources();
