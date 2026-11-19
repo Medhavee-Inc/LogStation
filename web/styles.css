@@ -125,8 +125,10 @@ h1, h2, p { margin-top: 0; }
 .viewer-title-wrap p { margin: 0; color: var(--muted); font: 10px "DM Mono", monospace; }
 .live-pill { justify-self: end; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font: 9px "DM Mono", monospace; letter-spacing: .1em; }
 .live-pill i { width: 6px; height: 6px; }
-.log-workspace { display: grid; grid-template-columns: minmax(255px, 30%) minmax(0, 1fr); height: min(700px, calc(100vh - 190px)); min-height: 440px; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--surface); }
-.file-sidebar { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--line); background: var(--surface-raised); }
+.log-workspace { display: grid; grid-template-columns: minmax(210px, 24%) minmax(0, 1fr); min-height: 340px; max-height: calc(50 * 27px + 125px); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--surface); }
+.log-workspace.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+.file-sidebar { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--surface-raised); }
+.sidebar-collapsed .file-sidebar { display: none; }
 .sidebar-heading { height: 49px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); color: var(--muted); font: 500 9px "DM Mono", monospace; letter-spacing: .13em; }
 .small-icon-button { width: 27px; height: 27px; border-radius: 6px; font-size: 19px; line-height: 1; }
 .file-search-wrap, .log-search { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
@@ -134,7 +136,7 @@ h1, h2, p { margin-top: 0; }
 .file-search-wrap svg, .log-search svg { width: 14px; flex: 0 0 auto; fill: none; stroke: var(--subtle); stroke-width: 1.7; stroke-linecap: round; }
 .file-search-wrap input, .log-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 11px; }
 .file-search-wrap input::placeholder, .log-search input::placeholder { color: var(--subtle); }
-.file-list { flex: 1; overflow: auto; padding: 4px 8px; }
+.file-list { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px; }
 .file-item { width: 100%; padding: 10px 9px; display: flex; align-items: flex-start; gap: 10px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
 .file-item:hover { background: var(--surface-hover); }
 .file-item.active { background: var(--accent-wash); }
@@ -146,7 +148,7 @@ h1, h2, p { margin-top: 0; }
 .file-item.active .file-item-text strong { color: var(--accent); }
 .sidebar-footer { height: 40px; padding: 0 15px; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); color: var(--muted); font: 10px "DM Mono", monospace; }
 .status-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-.log-panel { min-width: 0; display: flex; flex-direction: column; }
+.log-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .log-toolbar { min-height: 49px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
 .selected-file-wrap { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .file-indicator { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 2px; background: var(--subtle); }
@@ -158,7 +160,7 @@ h1, h2, p { margin-top: 0; }
 .toolbar-button:hover, .toolbar-button.paused, .toolbar-button.active { border-color: var(--line-strong); color: var(--text); }
 .toolbar-button span { margin-right: 4px; color: var(--accent); }
 .clear-button { display: none; }
-.log-output { flex: 1; overflow: auto; background-color: var(--surface); background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% 29px; }
+.log-output { flex: 1; min-height: 0; max-height: calc(50 * 27px + 25px); overflow: auto; background-color: var(--surface); background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% 29px; }
 .log-lines { min-width: max-content; padding: 9px 0 16px; }
 .log-lines.wrap-lines { min-width: 100%; }
 .log-line { min-height: 27px; display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: start; padding: 5px 16px 4px 0; color: var(--text); font: 12px/18px ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, "Liberation Mono", monospace; }
@@ -220,11 +222,10 @@ h1, h2, p { margin-top: 0; }
   .main-content { width: 90%; }
   .viewer-header { grid-template-columns: 1fr 2fr; }
   .live-pill { display: none; }
-  .log-workspace { grid-template-columns: minmax(205px, 34%) minmax(0, 1fr); }
+  .log-workspace { grid-template-columns: minmax(180px, 30%) minmax(0, 1fr); }
   .log-toolbar { flex-wrap: wrap; padding: 9px 11px; }
   .toolbar-actions { width: 100%; }
   .log-search { flex: 1; }
-  .log-workspace { height: calc(100vh - 205px); min-height: 400px; }
 }
 @media (max-width: 560px) {
   .topbar { height: 58px; }
@@ -241,7 +242,7 @@ h1, h2, p { margin-top: 0; }
   .back-button { font-size: 11px; }
   .viewer-title-wrap h1 { font-size: 14px; }
   .viewer-title-wrap p { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .log-workspace { height: calc(100vh - 145px); min-height: 380px; grid-template-columns: 42% minmax(0, 1fr); }
+  .log-workspace { grid-template-columns: 34% minmax(0, 1fr); }
   .file-item { padding: 9px 5px; gap: 6px; }
   .file-item-icon { display: none; }
   .sidebar-heading { padding: 0 10px; }

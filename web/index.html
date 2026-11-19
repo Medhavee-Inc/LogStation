@@ -58,7 +58,7 @@
           <span class="live-pill"><i></i> LIVE TAIL</span>
         </div>
         <div class="log-workspace">
-          <aside class="file-sidebar">
+          <aside id="file-sidebar" class="file-sidebar">
             <div class="sidebar-heading"><span>LOG STREAMS</span><button id="refresh-files" class="small-icon-button" title="Refresh streams" aria-label="Refresh streams">↻</button></div>
             <div class="file-search-wrap"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4"/></svg><input id="file-filter" type="search" placeholder="Find a stream..." autocomplete="off"></div>
             <div id="file-list" class="file-list"></div>
@@ -67,6 +67,7 @@
           <section class="log-panel">
             <div class="log-toolbar">
               <div class="selected-file-wrap">
+                <button id="sidebar-toggle" class="toolbar-button" type="button" aria-controls="file-sidebar" aria-expanded="true">Hide files</button>
                 <span class="file-indicator"></span><span id="selected-file" class="selected-file">Select a log stream</span>
               </div>
               <div class="toolbar-actions">

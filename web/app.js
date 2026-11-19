@@ -444,6 +444,12 @@ $("#theme-toggle").addEventListener("click", () => {
 $("#back-home").addEventListener("click", showHome);
 $("#refresh-files").addEventListener("click", loadFiles);
 $("#file-filter").addEventListener("input", filterFiles);
+$("#sidebar-toggle").addEventListener("click", (event) => {
+  const button = event.currentTarget;
+  const collapsed = $(".log-workspace").classList.toggle("sidebar-collapsed");
+  button.textContent = collapsed ? "Show files" : "Hide files";
+  button.setAttribute("aria-expanded", String(!collapsed));
+});
 $("#log-filter").addEventListener("input", () => renderLogs(latestLogs));
 $("#clear-filter").addEventListener("click", () => {
   $("#log-filter").value = "";

@@ -32,7 +32,7 @@ The resulting `./logStation` contains the server and web assets. Build it on the
 
 Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and Kubernetes contexts are read with the OS user's permissions.
 
-The viewer tails the latest 300 lines and polls every 2.5 seconds. Use the theme button for dark/light mode, and the pause, filter, and **Wrap lines** controls in the viewer. By default, long lines scroll horizontally; **Wrap lines** toggles wrapping on and off.
+The viewer tails the latest 300 lines and polls every 2.5 seconds. Its height grows with the log output up to 50 lines, then scrolls vertically. Use **Hide files** / **Show files** to collapse or reopen the stream sidebar, and the theme, pause, filter, and **Wrap lines** controls as needed. By default, long lines scroll horizontally; **Wrap lines** toggles wrapping on and off.
 
 ## Development
 
