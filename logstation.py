@@ -20,6 +20,7 @@ from kubernetes.config.config_exception import ConfigException
 APP_NAME = "LogStation"
 MAX_BODY_SIZE = 1024 * 1024
 TAIL_LINES = 300
+MAX_TAIL_LINES = 10000
 sources = {}
 sources_lock = threading.RLock()
 
@@ -125,8 +126,12 @@ def validate_source(source):
 
 def connect_ssh(source):
     ssh = paramiko.SSHClient()
+    known_hosts = Path.home() / ".ssh" / "known_hosts"
+    known_hosts.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    known_hosts.touch(mode=0o600, exist_ok=True)
     ssh.load_system_host_keys()
-    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+    ssh.load_host_keys(str(known_hosts))
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         ssh.connect(
             hostname=source["host"],
@@ -213,14 +218,14 @@ def list_files(source):
     return result
 
 
-def read_local_tail(path):
+def read_local_tail(path, tail_lines=TAIL_LINES):
     with open(path, "rb") as log_file:
         log_file.seek(0, os.SEEK_END)
         position = log_file.tell()
         chunks = []
         newlines = 0
         bytes_read = 0
-        while position > 0 and newlines <= TAIL_LINES and bytes_read < 2 * 1024 * 1024:
+        while position > 0 and newlines <= tail_lines and bytes_read < 2 * 1024 * 1024:
             size = min(8192, position)
             position -= size
             log_file.seek(position)
@@ -229,15 +234,26 @@ def read_local_tail(path):
             newlines += chunk.count(b"\n")
             bytes_read += size
         text = b"".join(reversed(chunks)).decode("utf-8", "replace")
-        return "\n".join(text.splitlines()[-TAIL_LINES:])
+        return "\n".join(text.splitlines()[-tail_lines:])
 
 
-def get_logs(source, item_id):
+def parse_tail_lines(query):
+    value = parse_qs(query, keep_blank_values=True).get("lines", [str(TAIL_LINES)])[0]
+    try:
+        tail_lines = int(value)
+    except ValueError as exc:
+        raise ServiceError("Tail line count must be an integer.") from exc
+    if not 1 <= tail_lines <= MAX_TAIL_LINES:
+        raise ServiceError(f"Tail line count must be between 1 and {MAX_TAIL_LINES}.")
+    return tail_lines
+
+
+def get_logs(source, item_id, tail_lines=TAIL_LINES):
     if source["type"] == "local":
         if item_id not in source["paths"]:
             raise ServiceError("Unknown log file for this source.")
         try:
-            return read_local_tail(item_id)
+            return read_local_tail(item_id, tail_lines)
         except OSError as exc:
             raise ServiceError(f"Cannot read {item_id}: {exc}", 400, "file_error") from exc
     if source["type"] == "ssh":
@@ -246,7 +262,7 @@ def get_logs(source, item_id):
         try:
             with connect_ssh(source) as ssh:
                 _, stdout, stderr = ssh.exec_command(
-                    f"tail -n {TAIL_LINES} -- {shlex.quote(item_id)}", timeout=10
+                    f"tail -n {tail_lines} -- {shlex.quote(item_id)}", timeout=10
                 )
                 output = stdout.read().decode("utf-8", "replace")
                 error = stderr.read().decode("utf-8", "replace").strip()
@@ -267,7 +283,7 @@ def get_logs(source, item_id):
             name=pod_name,
             namespace=source["namespace"],
             container=container_name,
-            tail_lines=TAIL_LINES,
+            tail_lines=tail_lines,
             timestamps=True,
         )
     except ServiceError:
@@ -369,8 +385,11 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json({"files": list_files(source)})
                 elif len(parts) == 4 and parts[3] == "logs":
                     source = self._source(unquote(parts[2]))
-                    item_id = parse_qs(parsed.query).get("file", [""])[0]
-                    self._send_json({"logs": get_logs(source, item_id)})
+                    query = parse_qs(parsed.query)
+                    item_id = query.get("file", [""])[0]
+                    self._send_json({
+                        "logs": get_logs(source, item_id, parse_tail_lines(parsed.query))
+                    })
                 else:
                     raise ServiceError("Endpoint not found.", 404)
             else:

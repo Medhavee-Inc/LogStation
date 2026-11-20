@@ -12,6 +12,12 @@ let activeFile = null;
 let refreshTimer = null;
 let paused = false;
 let wrapLines = localStorage.getItem("logstation-wrap-lines") === "true";
+const DEFAULT_TAIL_LINES = 300;
+const MAX_TAIL_LINES = 10000;
+const savedTailLines = Number(localStorage.getItem("logstation-tail-lines"));
+let tailLines = Number.isInteger(savedTailLines) && savedTailLines >= 1 && savedTailLines <= MAX_TAIL_LINES
+  ? savedTailLines
+  : DEFAULT_TAIL_LINES;
 let latestLogs = "";
 let toastTimer = null;
 let passwordSourceId = null;
@@ -355,7 +361,7 @@ function showLogEmpty(title, description) {
 async function refreshLogs() {
   if (!activeSource || !activeFile) return;
   try {
-    const url = `/api/sources/${encodeURIComponent(activeSource.id)}/logs?file=${encodeURIComponent(activeFile.id)}`;
+    const url = `/api/sources/${encodeURIComponent(activeSource.id)}/logs?file=${encodeURIComponent(activeFile.id)}&lines=${tailLines}`;
     const data = await api(url);
     latestLogs = data.logs;
     renderLogs(latestLogs);
@@ -451,6 +457,18 @@ $("#sidebar-toggle").addEventListener("click", (event) => {
   button.setAttribute("aria-expanded", String(!collapsed));
 });
 $("#log-filter").addEventListener("input", () => renderLogs(latestLogs));
+$("#tail-lines").value = String(tailLines);
+$("#tail-lines").addEventListener("change", (event) => {
+  const input = event.currentTarget;
+  const value = input.valueAsNumber;
+  if (!Number.isInteger(value) || value < 1 || value > MAX_TAIL_LINES) {
+    input.value = String(tailLines);
+    return;
+  }
+  tailLines = value;
+  localStorage.setItem("logstation-tail-lines", String(tailLines));
+  if (!paused) refreshLogs();
+});
 $("#clear-filter").addEventListener("click", () => {
   $("#log-filter").value = "";
   renderLogs(latestLogs);
@@ -483,7 +501,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-setTheme(localStorage.getItem("logstation-theme") || "dark");
+setTheme(localStorage.getItem("logstation-theme") || "light");
 $("#wrap-lines").setAttribute("aria-pressed", String(wrapLines));
 $("#wrap-lines").classList.toggle("active", wrapLines);
 loadSources();
