@@ -102,7 +102,8 @@ h1, h2, p { margin-top: 0; }
 .source-card:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; }
 .source-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; font-size: 19px; }
-.type-kubernetes .source-icon, .mini-source-icon.type-kubernetes { background: rgba(102, 144, 255, .12); color: var(--blue); }
+.type-kubernetes .source-icon, .mini-source-icon.type-kubernetes,
+.type-remote-kubernetes .source-icon, .mini-source-icon.type-remote-kubernetes { background: rgba(102, 144, 255, .12); color: var(--blue); }
 .type-ssh .source-icon, .mini-source-icon.type-ssh { background: rgba(232, 179, 105, .12); color: var(--orange); }
 .type-local .source-icon, .mini-source-icon.type-local { background: var(--accent-wash); color: var(--accent); }
 .card-menu { position: relative; z-index: 1; width: 27px; height: 27px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
@@ -188,7 +189,7 @@ h1, h2, p { margin-top: 0; }
 .modal-header h2 { margin: 0; font: 650 21px "Segoe UI", sans-serif; letter-spacing: -.6px; }
 .modal-close { width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 23px; line-height: 1; }
 .modal-close:hover { background: var(--surface-hover); color: var(--text); }
-.source-tabs { margin: 22px 0 19px; padding: 4px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.source-tabs { margin: 22px 0 19px; padding: 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .source-tab { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
 .source-tab.active { background: var(--surface-hover); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
 .tab-glyph { color: var(--accent); font-size: 16px; }

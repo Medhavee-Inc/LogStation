@@ -27,10 +27,11 @@ The resulting `./logStation` contains the server and web assets. Build it on the
 ## Connect sources
 
 - **Kubernetes:** Uses the current OS user's default kubeconfig (`~/.kube/config`) and its contexts. Pick a context and namespace; each pod container is shown as a stream.
+- **Remote Kubernetes:** Enter an SSH host, username, and password, then load and choose a context and namespace from the remote machine. LogStation runs `kubectl` over SSH on that machine, so its installed `kubectl`, kubeconfig, and Kubernetes role are used. The remote host must have `kubectl` installed and available on the SSH user's `PATH`. Its host key follows the same trust-on-first-use verification as SSH sources. The password stays in process memory and is never written to the source file; enter it again after restarting LogStation.
 - **SSH:** Provide a host, username, password, and one absolute log path per line. On first connection, LogStation accepts the host key and adds it to `~/.ssh/known_hosts`; later connections verify it against the saved key and reject changed keys. This trust-on-first-use behavior means you should verify the host key fingerprint through a trusted channel if possible. The password stays in process memory and is never written to the source file. After a restart, enter it again when reconnecting.
 - **Local files:** Enter one readable file path per line on the machine running LogStation.
 
-Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and Kubernetes contexts are read with the OS user's permissions.
+Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and local Kubernetes contexts are read with the OS user's permissions.
 
 The viewer tails the latest 300 lines by default and polls every 2.5 seconds. Set the **Tail** count in the log toolbar to show between 1 and 10,000 lines; your choice is saved locally. Its height grows with the log output up to 50 lines, then scrolls vertically. Use **Hide files** / **Show files** to collapse or reopen the stream sidebar, and the theme, pause, filter, and **Wrap lines** controls as needed. By default, long lines scroll horizontally; **Wrap lines** toggles wrapping on and off.
 

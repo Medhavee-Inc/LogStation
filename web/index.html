@@ -39,7 +39,7 @@
           <button id="add-source-card" class="add-source-card" type="button">
             <span class="add-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
             <span class="add-label">Add a source</span>
-            <span class="add-description">Kubernetes, SSH, or local files</span>
+            <span class="add-description">Kubernetes, remote SSH, or local files</span>
           </button>
         </div>
         <div id="empty-hint" class="empty-hint">
@@ -92,6 +92,7 @@
       <div class="modal-header"><div><p class="eyebrow">CONNECT A SOURCE</p><h2 id="modal-title">Add a log source</h2></div><button id="close-modal" class="modal-close" type="button" aria-label="Close dialog">×</button></div>
       <div class="source-tabs" role="tablist">
         <button class="source-tab active" data-type="kubernetes" role="tab" type="button"><span class="tab-glyph kube-glyph">⎈</span> Kubernetes</button>
+        <button class="source-tab" data-type="remote-kubernetes" role="tab" type="button"><span class="tab-glyph kube-glyph">⎈</span> Remote K8s</button>
         <button class="source-tab" data-type="ssh" role="tab" type="button"><span class="tab-glyph ssh-glyph">⌘</span> SSH</button>
         <button class="source-tab" data-type="local" role="tab" type="button"><span class="tab-glyph local-glyph">▤</span> Local files</button>
       </div>
@@ -99,6 +100,13 @@
         <div id="kubernetes-fields" class="form-fields">
           <label class="field"><span>Context / cluster</span><select id="context-field" required><option value="">Loading local contexts…</option></select><small>Uses your local kubeconfig and current user credentials.</small></label>
           <label class="field"><span>Namespace</span><select id="namespace-field" required><option value="">Choose a context first</option></select></label>
+        </div>
+        <div id="remote-kubernetes-fields" class="form-fields hidden">
+          <label class="field"><span>Remote host</span><input id="remote-kube-host-field" autocomplete="off" placeholder="192.168.1.20" required></label>
+          <div class="field-row"><label class="field"><span>SSH username</span><input id="remote-kube-username-field" autocomplete="username" placeholder="ubuntu" required></label><label class="field"><span>SSH password</span><input id="remote-kube-password-field" type="password" autocomplete="current-password" placeholder="SSH password" required></label></div>
+          <button id="load-remote-contexts" class="secondary-button" type="button">Load remote contexts</button>
+          <label class="field"><span>Context / cluster</span><select id="remote-kube-context-field" required><option value="">Connect to load contexts</option></select><small>Uses kubectl and the kubeconfig on the remote host.</small></label>
+          <label class="field"><span>Namespace</span><select id="remote-kube-namespace-field" required><option value="">Choose a context first</option></select></label>
         </div>
         <div id="ssh-fields" class="form-fields hidden">
           <label class="field"><span>IP address or hostname</span><input id="host-field" autocomplete="off" placeholder="192.168.1.20" required></label>

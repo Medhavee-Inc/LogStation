@@ -22,7 +22,7 @@ let latestLogs = "";
 let toastTimer = null;
 let passwordSourceId = null;
 
-const icons = { kubernetes: "⎈", ssh: "⌘", local: "▤" };
+const icons = { kubernetes: "⎈", "remote-kubernetes": "⎈", ssh: "⌘", local: "▤" };
 
 function showMessage(element, message, kind = "") {
   element.textContent = message;
@@ -58,6 +58,9 @@ function toast(message) {
 
 function sourceSubtitle(source) {
   if (source.type === "kubernetes") return `${source.context} · ${source.namespace}`;
+  if (source.type === "remote-kubernetes") {
+    return `${source.username}@${source.host} · ${source.context} · ${source.namespace}`;
+  }
   if (source.type === "ssh") return `${source.username}@${source.host}`;
   return `${source.paths.length} local file${source.paths.length === 1 ? "" : "s"}`;
 }
@@ -105,7 +108,9 @@ function renderSources() {
     const bottom = document.createElement("div");
     bottom.className = "card-bottom";
     const kind = document.createElement("span");
-    kind.textContent = source.type === "local" ? "Local files" : source.type;
+    kind.textContent = source.type === "local"
+      ? "Local files"
+      : source.type === "remote-kubernetes" ? "Remote Kubernetes" : source.type;
     const open = document.createElement("span");
     open.className = "card-open";
     open.textContent = source.requiresPassword ? "Reconnect →" : "View logs →";
@@ -138,6 +143,7 @@ function setFormType(type) {
   }
   const groups = {
     kubernetes: $("#kubernetes-fields"),
+    "remote-kubernetes": $("#remote-kubernetes-fields"),
     ssh: $("#ssh-fields"),
     local: $("#local-fields"),
   };
@@ -159,6 +165,16 @@ function formSource() {
   if (currentType === "kubernetes") {
     const context = $("#context-field").value;
     return { type: "kubernetes", name: context, context, namespace: $("#namespace-field").value };
+  }
+  if (currentType === "remote-kubernetes") {
+    const host = $("#remote-kube-host-field").value.trim();
+    return {
+      type: "remote-kubernetes", name: host, host,
+      username: $("#remote-kube-username-field").value.trim(),
+      password: $("#remote-kube-password-field").value,
+      context: $("#remote-kube-context-field").value,
+      namespace: $("#remote-kube-namespace-field").value,
+    };
   }
   if (currentType === "ssh") {
     const host = $("#host-field").value.trim();
@@ -196,6 +212,56 @@ async function loadNamespaces(context) {
   if (!context) return;
   try {
     const data = await api(`/api/namespaces/${encodeURIComponent(context)}`);
+    namespaceField.replaceChildren(new Option("Select a namespace", ""));
+    for (const namespace of data.namespaces) namespaceField.add(new Option(namespace, namespace));
+    if (data.namespaces.includes("default")) namespaceField.value = "default";
+    if (!data.namespaces.length) namespaceField.replaceChildren(new Option("No namespaces found", ""));
+  } catch (error) {
+    namespaceField.replaceChildren(new Option("Could not load namespaces", ""));
+    showMessage($("#form-message"), error.message, "error");
+  }
+}
+
+function remoteKubeCredentials() {
+  return {
+    host: $("#remote-kube-host-field").value.trim(),
+    username: $("#remote-kube-username-field").value.trim(),
+    password: $("#remote-kube-password-field").value,
+  };
+}
+
+async function loadRemoteContexts() {
+  const contextField = $("#remote-kube-context-field");
+  contextField.replaceChildren(new Option("Loading remote contexts…", ""));
+  try {
+    const data = await api("/api/remote-kubernetes/contexts", {
+      method: "POST",
+      body: JSON.stringify(remoteKubeCredentials()),
+    });
+    contextField.replaceChildren(new Option("Select a context", ""));
+    for (const context of data.contexts) {
+      const option = new Option(context.name, context.name);
+      option.textContent = context.cluster ? `${context.name} · ${context.cluster}` : context.name;
+      contextField.add(option);
+    }
+    if (data.active) contextField.value = data.active;
+    if (!data.contexts.length) contextField.replaceChildren(new Option("No remote contexts found", ""));
+    await loadRemoteNamespaces(contextField.value);
+  } catch (error) {
+    contextField.replaceChildren(new Option("Could not load remote contexts", ""));
+    showMessage($("#form-message"), error.message, "error");
+  }
+}
+
+async function loadRemoteNamespaces(context) {
+  const namespaceField = $("#remote-kube-namespace-field");
+  namespaceField.replaceChildren(new Option(context ? "Loading namespaces…" : "Choose a context first", ""));
+  if (!context) return;
+  try {
+    const data = await api("/api/remote-kubernetes/namespaces", {
+      method: "POST",
+      body: JSON.stringify({ ...remoteKubeCredentials(), context }),
+    });
     namespaceField.replaceChildren(new Option("Select a namespace", ""));
     for (const namespace of data.namespaces) namespaceField.add(new Option(namespace, namespace));
     if (data.namespaces.includes("default")) namespaceField.value = "default";
@@ -310,7 +376,7 @@ function renderFiles(files) {
     button.dataset.search = `${file.label} ${file.detail}`.toLowerCase();
     const icon = document.createElement("span");
     icon.className = "file-item-icon";
-    icon.textContent = activeSource.type === "kubernetes" ? "▧" : "▤";
+    icon.textContent = ["kubernetes", "remote-kubernetes"].includes(activeSource.type) ? "▧" : "▤";
     const text = document.createElement("span");
     text.className = "file-item-text";
     const label = document.createElement("strong");
@@ -444,6 +510,8 @@ document.querySelectorAll(".source-tab").forEach((button) => {
   button.addEventListener("click", () => setFormType(button.dataset.type));
 });
 $("#context-field").addEventListener("change", (event) => loadNamespaces(event.target.value));
+$("#load-remote-contexts").addEventListener("click", loadRemoteContexts);
+$("#remote-kube-context-field").addEventListener("change", (event) => loadRemoteNamespaces(event.target.value));
 $("#theme-toggle").addEventListener("click", () => {
   setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
 });

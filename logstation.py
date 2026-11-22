@@ -42,7 +42,7 @@ def sources_file():
 
 def public_source(source):
     result = {key: value for key, value in source.items() if key != "password"}
-    if source.get("type") == "ssh":
+    if source.get("type") in ("ssh", "remote-kubernetes"):
         result["requiresPassword"] = not bool(source.get("password"))
     return result
 
@@ -50,7 +50,12 @@ def public_source(source):
 def save_sources():
     data_dir().mkdir(mode=0o700, parents=True, exist_ok=True)
     with sources_lock:
-        stored = [public_source(source) for source in sources.values()]
+        stored = [
+            public_source({**source, "password": ""})
+            if source.get("type") in ("ssh", "remote-kubernetes")
+            else public_source(source)
+            for source in sources.values()
+        ]
         path = sources_file()
         temporary = path.with_suffix(".tmp")
         temporary.write_text(json.dumps(stored, indent=2), encoding="utf-8")
@@ -99,11 +104,71 @@ def kube_contexts():
         ) from exc
 
 
+def validate_remote_ssh(source):
+    if not all(
+        isinstance(source.get(key), str) and source[key].strip()
+        for key in ("host", "username")
+    ):
+        raise ServiceError("Enter the SSH host and username.")
+    if not isinstance(source.get("password"), str) or not source["password"]:
+        raise ServiceError(
+            "Enter the SSH password. Passwords are held in memory only.",
+            428, "password_required",
+        )
+
+
+def remote_command(source, command):
+    try:
+        with connect_ssh(source) as ssh:
+            _, stdout, stderr = ssh.exec_command(shlex.join(command), timeout=15)
+            output = stdout.read().decode("utf-8", "replace")
+            error = stderr.read().decode("utf-8", "replace").strip()
+            status = stdout.channel.recv_exit_status()
+            if status:
+                raise ServiceError(
+                    error or "Remote command failed.", 502, "remote_command_error"
+                )
+            return output
+    except ServiceError:
+        raise
+    except (paramiko.SSHException, OSError, TimeoutError, EOFError, ValueError, KeyError) as exc:
+        raise ServiceError(f"SSH connection failed: {exc}", 502, "ssh_error") from exc
+
+
+def remote_kube_command(source, command):
+    return remote_command(source, [
+        "kubectl", "--context", source["context"], "--namespace", source["namespace"],
+        *command,
+    ])
+
+
+def remote_kube_contexts(source):
+    validate_remote_ssh(source)
+    try:
+        data = json.loads(remote_command(source, ["kubectl", "config", "view", "-o", "json"]))
+        if not isinstance(data, dict):
+            raise TypeError("Kubeconfig output must be a JSON object.")
+        contexts = [
+            {"name": item["name"], "cluster": item["context"].get("cluster", "")}
+            for item in data.get("contexts", [])
+        ]
+        return contexts, data.get("current-context", "")
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
+        raise ServiceError(
+            f"Could not read the remote kubeconfig: {exc}", 502, "kubernetes_error"
+        ) from exc
+
+
 def validate_source(source):
     source_type = source.get("type")
     if source_type == "kubernetes":
         if not source.get("context") or not source.get("namespace"):
             raise ServiceError("Choose a Kubernetes context and namespace.")
+        return
+    if source_type == "remote-kubernetes":
+        if not source.get("context") or not source.get("namespace"):
+            raise ServiceError("Choose a remote Kubernetes context and namespace.")
+        validate_remote_ssh(source)
         return
     if source_type in ("local", "ssh"):
         paths = source.get("paths")
@@ -113,15 +178,9 @@ def validate_source(source):
             raise ServiceError("Enter at least one log file path.")
         source["paths"] = [path.strip() for path in paths]
         if source_type == "ssh":
-            if not source.get("host") or not source.get("username"):
-                raise ServiceError("Enter the SSH host and username.")
-            if not source.get("password"):
-                raise ServiceError(
-                    "Enter the SSH password. Passwords are held in memory only.",
-                    428, "password_required",
-                )
+            validate_remote_ssh(source)
         return
-    raise ServiceError("Choose Kubernetes, SSH, or local files.")
+    raise ServiceError("Choose Kubernetes, remote Kubernetes, SSH, or local files.")
 
 
 def connect_ssh(source):
@@ -161,6 +220,8 @@ def test_source(source):
                 f"Kubernetes connection failed: {getattr(exc, 'reason', None) or exc}",
                 502, "kubernetes_error",
             ) from exc
+    elif source["type"] == "remote-kubernetes":
+        remote_kube_command(source, ["get", "pods", "--output=json", "--limit=1"])
     elif source["type"] == "local":
         for path in source["paths"]:
             try:
@@ -195,6 +256,30 @@ def list_files(source):
             {"id": path, "label": Path(path).name or path, "detail": path}
             for path in source["paths"]
         ]
+    if source["type"] == "remote-kubernetes":
+        try:
+            data = json.loads(remote_kube_command(
+                source, ["get", "pods", "--output=json", "--limit=500"]
+            ))
+            if not isinstance(data, dict):
+                raise TypeError("Pod list output must be a JSON object.")
+            pods = data.get("items", [])
+        except (json.JSONDecodeError, AttributeError, TypeError) as exc:
+            raise ServiceError(
+                f"Could not parse remote Kubernetes pod list: {exc}",
+                502, "kubernetes_error",
+            ) from exc
+        result = []
+        for pod in pods:
+            for container in pod.get("spec", {}).get("containers", []):
+                result.append({
+                    "id": json.dumps(
+                        [pod["metadata"]["name"], container["name"]], separators=(",", ":")
+                    ),
+                    "label": container["name"],
+                    "detail": pod["metadata"]["name"],
+                })
+        return result
     try:
         pods = kube_api(source["context"]).list_namespaced_pod(
             source["namespace"], limit=500
@@ -277,6 +362,17 @@ def get_logs(source, item_id, tail_lines=TAIL_LINES):
             raise
         except (paramiko.SSHException, OSError, TimeoutError, EOFError, ValueError, KeyError) as exc:
             raise ServiceError(f"SSH log read failed: {exc}", 502, "ssh_error") from exc
+    if source["type"] == "remote-kubernetes":
+        try:
+            pod_name, container_name = json.loads(item_id)
+            return remote_kube_command(source, [
+                "logs", pod_name, "--container", container_name,
+                "--tail", str(tail_lines), "--timestamps",
+            ]).rstrip("\n")
+        except ServiceError:
+            raise
+        except (ValueError, TypeError, KeyError) as exc:
+            raise ServiceError("Invalid Kubernetes log selection.") from exc
     try:
         pod_name, container_name = json.loads(item_id)
         return kube_api(source["context"]).read_namespaced_pod_log(
@@ -408,6 +504,31 @@ class Handler(BaseHTTPRequestHandler):
             data = self._read_json()
             if parsed.path == "/api/test-source":
                 self._send_json(test_source(data))
+            elif parsed.path == "/api/remote-kubernetes/contexts":
+                contexts, active = remote_kube_contexts(data)
+                self._send_json({"contexts": contexts, "active": active})
+            elif parsed.path == "/api/remote-kubernetes/namespaces":
+                validate_remote_ssh(data)
+                context = data.get("context")
+                if not isinstance(context, str) or not context.strip():
+                    raise ServiceError("Choose a remote Kubernetes context.")
+                output = remote_command(data, [
+                    "kubectl", "--context", context, "get", "namespaces", "--output=json",
+                ])
+                try:
+                    namespace_data = json.loads(output)
+                    if not isinstance(namespace_data, dict):
+                        raise TypeError("Namespace output must be a JSON object.")
+                    namespaces = [
+                        item["metadata"]["name"]
+                        for item in namespace_data.get("items", [])
+                    ]
+                except (json.JSONDecodeError, AttributeError, KeyError, TypeError) as exc:
+                    raise ServiceError(
+                        f"Could not parse remote Kubernetes namespaces: {exc}",
+                        502, "kubernetes_error",
+                    ) from exc
+                self._send_json({"namespaces": namespaces})
             elif parsed.path == "/api/sources":
                 validate_source(data)
                 data["id"] = uuid.uuid4().hex
@@ -424,8 +545,8 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path.startswith("/api/sources/") and parsed.path.endswith("/credentials"):
                 source_id = unquote(parsed.path.split("/")[3])
                 source = self._source(source_id)
-                if source["type"] != "ssh":
-                    raise ServiceError("Only SSH sources use credentials.")
+                if source["type"] not in ("ssh", "remote-kubernetes"):
+                    raise ServiceError("This source does not use SSH credentials.")
                 password = data.get("password")
                 if not isinstance(password, str) or not password:
                     raise ServiceError("Enter a password.")
@@ -489,6 +610,8 @@ class Handler(BaseHTTPRequestHandler):
 def default_name(source):
     if source["type"] == "kubernetes":
         return source.get("context", "Kubernetes")
+    if source["type"] == "remote-kubernetes":
+        return source.get("host", "Remote Kubernetes")
     if source["type"] == "ssh":
         return source.get("host", "SSH")
     return Path(source["paths"][0]).name
