@@ -221,7 +221,7 @@ def test_source(source):
                 502, "kubernetes_error",
             ) from exc
     elif source["type"] == "remote-kubernetes":
-        remote_kube_command(source, ["get", "pods", "--output=json", "--limit=1"])
+        remote_kube_command(source, ["get", "pods", "--output=json"])
     elif source["type"] == "local":
         for path in source["paths"]:
             try:
@@ -259,11 +259,11 @@ def list_files(source):
     if source["type"] == "remote-kubernetes":
         try:
             data = json.loads(remote_kube_command(
-                source, ["get", "pods", "--output=json", "--limit=500"]
+                source, ["get", "pods", "--output=json"]
             ))
             if not isinstance(data, dict):
                 raise TypeError("Pod list output must be a JSON object.")
-            pods = data.get("items", [])
+            pods = data.get("items", [])[:500]
         except (json.JSONDecodeError, AttributeError, TypeError) as exc:
             raise ServiceError(
                 f"Could not parse remote Kubernetes pod list: {exc}",

@@ -105,6 +105,16 @@ class LogStationTests(unittest.TestCase):
         )
 
     @patch("logstation.remote_kube_command")
+    def test_remote_kubernetes_connection_test_uses_supported_get_flags(self, remote_command):
+        source = {
+            "type": "remote-kubernetes", "host": "host", "username": "user",
+            "password": "secret", "context": "prod", "namespace": "default",
+        }
+        remote_command.return_value = '{"items":[]}'
+        logstation.test_source(source)
+        remote_command.assert_called_once_with(source, ["get", "pods", "--output=json"])
+
+    @patch("logstation.remote_kube_command")
     def test_remote_kubernetes_log_streams_and_tail_use_remote_kubectl(self, remote_command):
         source = {
             "type": "remote-kubernetes", "context": "prod", "namespace": "default",
@@ -115,6 +125,7 @@ class LogStationTests(unittest.TestCase):
         }]})
         files = logstation.list_files(source)
         self.assertEqual([item["label"] for item in files], ["web", "metrics"])
+        self.assertEqual(remote_command.call_args.args[1], ["get", "pods", "--output=json"])
 
         remote_command.return_value = "2024-01-01T00:00:00Z started\n"
         self.assertEqual(
