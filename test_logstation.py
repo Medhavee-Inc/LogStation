@@ -54,6 +54,20 @@ class LogStationTests(unittest.TestCase):
                     stored = json.loads(logstation.sources_file().read_text())
                     self.assertNotIn("password", stored[0])
 
+    def test_saved_source_preserves_custom_title_and_icon(self):
+        source = {
+            "id": "test-id", "type": "ssh", "name": "Production",
+            "icon": "server", "host": "host", "username": "user",
+            "password": "secret", "paths": ["/var/log/app.log"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {"LOGSTATION_HOME": directory}):
+                with patch.dict(logstation.sources, {"test-id": source}, clear=True):
+                    logstation.save_sources()
+                    stored = json.loads(logstation.sources_file().read_text())
+        self.assertEqual(stored[0]["name"], "Production")
+        self.assertEqual(stored[0]["icon"], "server")
+
     def test_remote_kubernetes_password_is_not_saved(self):
         source = {
             "id": "test-id", "type": "remote-kubernetes", "name": "cluster",

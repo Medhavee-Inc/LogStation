@@ -31,6 +31,8 @@ The resulting `./logStation` contains the server and web assets. Build it on the
 - **SSH:** Provide a host, username, password, and one absolute log path per line. On first connection, LogStation accepts the host key and adds it to `~/.ssh/known_hosts`; later connections verify it against the saved key and reject changed keys. This trust-on-first-use behavior means you should verify the host key fingerprint through a trusted channel if possible. The password stays in process memory and is never written to the source file. After a restart, enter it again when reconnecting.
 - **Local files:** Enter one readable file path per line on the machine running LogStation.
 
+When adding any source, you can optionally set a custom tile title and choose an icon. If the title is blank, LogStation uses the source's name.
+
 Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and local Kubernetes contexts are read with the OS user's permissions.
 
 The viewer tails the latest 300 lines by default and polls every 2.5 seconds. Set the **Tail** count in the log toolbar to show between 1 and 10,000 lines; your choice is saved locally. Its height grows with the log output up to 50 lines, then scrolls vertically. Use **Hide files** / **Show files** to collapse or reopen the stream sidebar, and the theme, pause, filter, and **Wrap lines** controls as needed. By default, long lines scroll horizontally; **Wrap lines** toggles wrapping on and off.

@@ -193,6 +193,13 @@ h1, h2, p { margin-top: 0; }
 .source-tab { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
 .source-tab.active { background: var(--surface-hover); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
 .tab-glyph { color: var(--accent); font-size: 16px; }
+.source-customization { display: grid; gap: 15px; margin-bottom: 15px; }
+.icon-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.icon-choice { min-height: 55px; padding: 7px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg); color: var(--muted); cursor: pointer; text-align: left; }
+.icon-choice > span { width: 27px; height: 27px; flex: 0 0 27px; display: grid; place-items: center; border-radius: 6px; background: var(--accent-wash); color: var(--accent); font-size: 16px; }
+.icon-choice small { font-size: 10px; }
+.icon-choice.active { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 1px var(--accent-wash); }
+.icon-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .form-fields { display: grid; gap: 15px; }
 .field { display: flex; flex-direction: column; gap: 7px; color: var(--text); font-size: 11px; font-weight: 500; }
 .field input, .field select, .field textarea { width: 100%; min-height: 39px; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 6px; outline: 0; background: var(--bg); color: var(--text); font-size: 12px; }

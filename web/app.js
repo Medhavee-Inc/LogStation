@@ -7,6 +7,7 @@ const logOutput = $("#log-output");
 
 let sources = [];
 let currentType = "kubernetes";
+let currentIcon = "kubernetes";
 let activeSource = null;
 let activeFile = null;
 let refreshTimer = null;
@@ -23,6 +24,16 @@ let toastTimer = null;
 let passwordSourceId = null;
 
 const icons = { kubernetes: "⎈", "remote-kubernetes": "⎈", ssh: "⌘", local: "▤" };
+const tileIcons = {
+  kubernetes: "⎈", ssh: "⌘", server: "▣", terminal: "›_", files: "▤", database: "◉",
+};
+const defaultTileIcons = {
+  kubernetes: "kubernetes", "remote-kubernetes": "kubernetes", ssh: "ssh", local: "files",
+};
+
+function sourceIcon(source) {
+  return tileIcons[source.icon] || icons[source.type] || "▤";
+}
 
 function showMessage(element, message, kind = "") {
   element.textContent = message;
@@ -79,7 +90,7 @@ function renderSources() {
     top.className = "card-top";
     const icon = document.createElement("span");
     icon.className = "source-icon";
-    icon.textContent = icons[source.type];
+    icon.textContent = sourceIcon(source);
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "card-menu";
@@ -137,6 +148,12 @@ function setTheme(theme) {
 
 function setFormType(type) {
   currentType = type;
+  currentIcon = defaultTileIcons[type];
+  for (const button of document.querySelectorAll(".icon-choice")) {
+    const active = button.dataset.icon === currentIcon;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
   for (const tab of document.querySelectorAll(".source-tab")) {
     tab.classList.toggle("active", tab.dataset.type === type);
     tab.setAttribute("aria-selected", String(tab.dataset.type === type));
@@ -162,14 +179,18 @@ function splitPaths(value) {
 }
 
 function formSource() {
+  const metadata = {
+    name: $("#source-title-field").value.trim(),
+    icon: currentIcon,
+  };
   if (currentType === "kubernetes") {
     const context = $("#context-field").value;
-    return { type: "kubernetes", name: context, context, namespace: $("#namespace-field").value };
+    return { ...metadata, type: "kubernetes", context, namespace: $("#namespace-field").value };
   }
   if (currentType === "remote-kubernetes") {
     const host = $("#remote-kube-host-field").value.trim();
     return {
-      type: "remote-kubernetes", name: host, host,
+      ...metadata, type: "remote-kubernetes", host,
       username: $("#remote-kube-username-field").value.trim(),
       password: $("#remote-kube-password-field").value,
       context: $("#remote-kube-context-field").value,
@@ -179,11 +200,11 @@ function formSource() {
   if (currentType === "ssh") {
     const host = $("#host-field").value.trim();
     return {
-      type: "ssh", name: host, host, username: $("#username-field").value.trim(),
+      ...metadata, type: "ssh", host, username: $("#username-field").value.trim(),
       password: $("#password-field").value, paths: splitPaths($("#ssh-paths-field").value),
     };
   }
-  return { type: "local", paths: splitPaths($("#local-paths-field").value) };
+  return { ...metadata, type: "local", paths: splitPaths($("#local-paths-field").value) };
 }
 
 async function loadContexts() {
@@ -344,7 +365,7 @@ async function openSource(source) {
   $("#viewer-title").textContent = source.name;
   $("#viewer-subtitle").textContent = sourceSubtitle(source);
   $("#viewer-source-icon").className = `mini-source-icon type-${source.type}`;
-  $("#viewer-source-icon").textContent = icons[source.type];
+  $("#viewer-source-icon").textContent = sourceIcon(source);
   $("#file-filter").value = "";
   $("#file-list").replaceChildren();
   showLogEmpty("Loading log streams…", "Fetching available files and containers.");
@@ -508,6 +529,16 @@ $("#test-source").addEventListener("click", testConnection);
 sourceForm.addEventListener("submit", saveSource);
 document.querySelectorAll(".source-tab").forEach((button) => {
   button.addEventListener("click", () => setFormType(button.dataset.type));
+});
+document.querySelectorAll(".icon-choice").forEach((button) => {
+  button.addEventListener("click", () => {
+    currentIcon = button.dataset.icon;
+    document.querySelectorAll(".icon-choice").forEach((choice) => {
+      const active = choice === button;
+      choice.classList.toggle("active", active);
+      choice.setAttribute("aria-pressed", String(active));
+    });
+  });
 });
 $("#context-field").addEventListener("change", (event) => loadNamespaces(event.target.value));
 $("#load-remote-contexts").addEventListener("click", loadRemoteContexts);

@@ -97,6 +97,20 @@
         <button class="source-tab" data-type="local" role="tab" type="button"><span class="tab-glyph local-glyph">▤</span> Local files</button>
       </div>
       <form id="source-form">
+        <div class="source-customization">
+          <label class="field"><span>Title <small>(optional)</small></span><input id="source-title-field" autocomplete="off" placeholder="Uses the source name if blank"></label>
+          <div class="field">
+            <span id="tile-icon-label">Tile icon</span>
+            <div class="icon-picker" role="group" aria-labelledby="tile-icon-label">
+              <button class="icon-choice active" data-icon="kubernetes" type="button" aria-pressed="true"><span>⎈</span><small>Kubernetes</small></button>
+              <button class="icon-choice" data-icon="ssh" type="button" aria-pressed="false"><span>⌘</span><small>Remote SSH</small></button>
+              <button class="icon-choice" data-icon="server" type="button" aria-pressed="false"><span>▣</span><small>Server</small></button>
+              <button class="icon-choice" data-icon="terminal" type="button" aria-pressed="false"><span>›_</span><small>Terminal</small></button>
+              <button class="icon-choice" data-icon="files" type="button" aria-pressed="false"><span>▤</span><small>Files</small></button>
+              <button class="icon-choice" data-icon="database" type="button" aria-pressed="false"><span>◉</span><small>Database</small></button>
+            </div>
+          </div>
+        </div>
         <div id="kubernetes-fields" class="form-fields">
           <label class="field"><span>Context / cluster</span><select id="context-field" required><option value="">Loading local contexts…</option></select><small>Uses your local kubeconfig and current user credentials.</small></label>
           <label class="field"><span>Namespace</span><select id="namespace-field" required><option value="">Choose a context first</option></select></label>
