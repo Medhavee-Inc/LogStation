@@ -104,13 +104,15 @@ def kube_contexts():
         ) from exc
 
 
-def validate_remote_ssh(source):
+def validate_remote_ssh(source, require_password=True):
     if not all(
         isinstance(source.get(key), str) and source[key].strip()
         for key in ("host", "username")
     ):
         raise ServiceError("Enter the SSH host and username.")
-    if not isinstance(source.get("password"), str) or not source["password"]:
+    if require_password and (
+        not isinstance(source.get("password"), str) or not source["password"]
+    ):
         raise ServiceError(
             "Enter the SSH password. Passwords are held in memory only.",
             428, "password_required",
@@ -159,7 +161,7 @@ def remote_kube_contexts(source):
         ) from exc
 
 
-def validate_source(source):
+def validate_source(source, allow_missing_password=False):
     source_type = source.get("type")
     if source_type == "kubernetes":
         if not source.get("context") or not source.get("namespace"):
@@ -168,7 +170,7 @@ def validate_source(source):
     if source_type == "remote-kubernetes":
         if not source.get("context") or not source.get("namespace"):
             raise ServiceError("Choose a remote Kubernetes context and namespace.")
-        validate_remote_ssh(source)
+        validate_remote_ssh(source, require_password=not allow_missing_password)
         return
     if source_type in ("local", "ssh"):
         paths = source.get("paths")
@@ -178,9 +180,32 @@ def validate_source(source):
             raise ServiceError("Enter at least one log file path.")
         source["paths"] = [path.strip() for path in paths]
         if source_type == "ssh":
-            validate_remote_ssh(source)
+            validate_remote_ssh(source, require_password=not allow_missing_password)
         return
     raise ServiceError("Choose Kubernetes, remote Kubernetes, SSH, or local files.")
+
+
+def prepare_source_update(existing, data):
+    if data.get("type") != existing.get("type"):
+        raise ServiceError("A source's connection type cannot be changed.")
+    if not isinstance(data.get("name", ""), str):
+        raise ServiceError("Source title must be text.")
+
+    same_ssh_target = data["type"] in ("ssh", "remote-kubernetes") and all(
+        data.get(key) == existing.get(key) for key in ("host", "username")
+    )
+    password = data.get("password", "")
+    if not isinstance(password, str):
+        raise ServiceError("SSH password must be text.")
+    if not password and same_ssh_target:
+        data["password"] = existing.get("password", "")
+    data["id"] = existing["id"]
+    validate_source(
+        data,
+        allow_missing_password=same_ssh_target and not data.get("password"),
+    )
+    data["name"] = data.get("name", "").strip() or default_name(data)
+    return data
 
 
 def connect_ssh(source):
@@ -503,6 +528,9 @@ class Handler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             data = self._read_json()
             if parsed.path == "/api/test-source":
+                if data.get("id"):
+                    existing = self._source(data["id"])
+                    data = prepare_source_update(existing, data)
                 self._send_json(test_source(data))
             elif parsed.path == "/api/remote-kubernetes/contexts":
                 contexts, active = remote_kube_contexts(data)
@@ -557,6 +585,32 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True})
             else:
                 raise ServiceError("Endpoint not found.", 404)
+        except ServiceError as exc:
+            self._send_error(exc)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except (OSError, ValueError, TypeError, KeyError, IndexError, UnicodeError) as exc:
+            self._send_error(ServiceError(f"Unexpected server error: {exc}", 500))
+
+    def do_PUT(self):
+        try:
+            self._check_origin()
+            parts = urlparse(self.path).path.strip("/").split("/")
+            if len(parts) != 3 or parts[:2] != ["api", "sources"]:
+                raise ServiceError("Endpoint not found.", 404)
+            source_id = unquote(parts[2])
+            with sources_lock:
+                existing = sources.get(source_id)
+                if existing is None:
+                    raise ServiceError("Source not found.", 404, "not_found")
+                updated = prepare_source_update(existing, self._read_json())
+                sources[source_id] = updated
+                try:
+                    save_sources()
+                except OSError as exc:
+                    sources[source_id] = existing
+                    raise ServiceError(f"Could not save source: {exc}", 500) from exc
+            self._send_json({"source": public_source(updated)})
         except ServiceError as exc:
             self._send_error(exc)
         except (BrokenPipeError, ConnectionResetError):

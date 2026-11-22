@@ -97,17 +97,21 @@ h1, h2, p { margin-top: 0; }
 .add-icon svg { width: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .add-label { font: 600 14px "Segoe UI", sans-serif; }
 .add-description { margin-top: 6px; color: var(--muted); font-size: 12px; }
-.source-card { position: relative; padding: 21px; cursor: pointer; text-align: left; overflow: hidden; }
+.source-card { position: relative; padding: 21px; overflow: hidden; }
 .source-card:hover { border-color: var(--line-strong); background: var(--surface-raised); transform: translateY(-2px); }
 .source-card:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.card-actions { display: flex; gap: 4px; }
 .source-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; font-size: 19px; }
 .type-kubernetes .source-icon, .mini-source-icon.type-kubernetes,
 .type-remote-kubernetes .source-icon, .mini-source-icon.type-remote-kubernetes { background: rgba(102, 144, 255, .12); color: var(--blue); }
 .type-ssh .source-icon, .mini-source-icon.type-ssh { background: rgba(232, 179, 105, .12); color: var(--orange); }
 .type-local .source-icon, .mini-source-icon.type-local { background: var(--accent-wash); color: var(--accent); }
-.card-menu { position: relative; z-index: 1; width: 27px; height: 27px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+.card-menu, .card-edit { position: relative; z-index: 1; width: 27px; height: 27px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+.card-menu:hover, .card-edit:hover { background: var(--surface-hover); color: var(--text); }
 .card-menu:hover { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.card-content { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.card-content:hover h3 { color: var(--accent); }
 .source-card h3 { margin: 20px 0 5px; font: 600 15px "Segoe UI", sans-serif; letter-spacing: -.2px; }
 .source-detail { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 11px "DM Mono", monospace; }
 .card-bottom { margin-top: 22px; padding-top: 13px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
@@ -192,6 +196,7 @@ h1, h2, p { margin-top: 0; }
 .source-tabs { margin: 22px 0 19px; padding: 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .source-tab { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
 .source-tab.active { background: var(--surface-hover); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+.source-tab:disabled { cursor: default; opacity: .6; }
 .tab-glyph { color: var(--accent); font-size: 16px; }
 .source-customization { display: grid; gap: 15px; margin-bottom: 15px; }
 .icon-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }

@@ -8,6 +8,7 @@ const logOutput = $("#log-output");
 let sources = [];
 let currentType = "kubernetes";
 let currentIcon = "kubernetes";
+let editingSourceId = null;
 let activeSource = null;
 let activeFile = null;
 let refreshTimer = null;
@@ -32,7 +33,7 @@ const defaultTileIcons = {
 };
 
 function sourceIcon(source) {
-  return tileIcons[source.icon] || icons[source.type] || "▤";
+  return Object.hasOwn(tileIcons, source.icon) ? tileIcons[source.icon] : icons[source.type] || "▤";
 }
 
 function showMessage(element, message, kind = "") {
@@ -81,16 +82,25 @@ function renderSources() {
   $("#source-count").textContent = String(sources.length).padStart(2, "0");
   $("#empty-hint").classList.toggle("hidden", sources.length > 0);
   for (const source of sources) {
-    const card = document.createElement("button");
-    card.type = "button";
+    const card = document.createElement("article");
     card.className = `source-card type-${source.type}`;
-    card.setAttribute("aria-label", `Open ${source.name}`);
 
     const top = document.createElement("div");
     top.className = "card-top";
     const icon = document.createElement("span");
     icon.className = "source-icon";
     icon.textContent = sourceIcon(source);
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "card-edit";
+    edit.textContent = "✎";
+    edit.title = "Edit source";
+    edit.setAttribute("aria-label", `Edit ${source.name}`);
+    edit.addEventListener("click", () => openEditModal(source));
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "card-menu";
@@ -109,8 +119,13 @@ function renderSources() {
         toast(error.message);
       }
     });
-    top.append(icon, remove);
+    actions.append(edit, remove);
+    top.append(icon, actions);
 
+    const content = document.createElement("button");
+    content.type = "button";
+    content.className = "card-content";
+    content.setAttribute("aria-label", `Open ${source.name}`);
     const title = document.createElement("h3");
     title.textContent = source.name;
     const detail = document.createElement("span");
@@ -126,8 +141,9 @@ function renderSources() {
     open.className = "card-open";
     open.textContent = source.requiresPassword ? "Reconnect →" : "View logs →";
     bottom.append(kind, open);
-    card.append(top, title, detail, bottom);
-    card.addEventListener("click", () => openSource(source));
+    content.append(title, detail, bottom);
+    card.append(top, content);
+    content.addEventListener("click", () => openSource(source));
     sourceGrid.insertBefore(card, $("#add-source-card"));
   }
 }
@@ -146,14 +162,18 @@ function setTheme(theme) {
   localStorage.setItem("logstation-theme", theme);
 }
 
-function setFormType(type) {
-  currentType = type;
-  currentIcon = defaultTileIcons[type];
+function selectTileIcon(icon) {
+  currentIcon = Object.hasOwn(tileIcons, icon) ? icon : defaultTileIcons[currentType];
   for (const button of document.querySelectorAll(".icon-choice")) {
     const active = button.dataset.icon === currentIcon;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   }
+}
+
+function setFormType(type) {
+  currentType = type;
+  selectTileIcon(defaultTileIcons[type]);
   for (const tab of document.querySelectorAll(".source-tab")) {
     tab.classList.toggle("active", tab.dataset.type === type);
     tab.setAttribute("aria-selected", String(tab.dataset.type === type));
@@ -179,35 +199,36 @@ function splitPaths(value) {
 }
 
 function formSource() {
-  const metadata = {
+  const source = {
     name: $("#source-title-field").value.trim(),
     icon: currentIcon,
   };
   if (currentType === "kubernetes") {
     const context = $("#context-field").value;
-    return { ...metadata, type: "kubernetes", context, namespace: $("#namespace-field").value };
-  }
-  if (currentType === "remote-kubernetes") {
+    Object.assign(source, { type: "kubernetes", context, namespace: $("#namespace-field").value });
+  } else if (currentType === "remote-kubernetes") {
     const host = $("#remote-kube-host-field").value.trim();
-    return {
-      ...metadata, type: "remote-kubernetes", host,
+    Object.assign(source, {
+      type: "remote-kubernetes", host,
       username: $("#remote-kube-username-field").value.trim(),
       password: $("#remote-kube-password-field").value,
       context: $("#remote-kube-context-field").value,
       namespace: $("#remote-kube-namespace-field").value,
-    };
-  }
-  if (currentType === "ssh") {
+    });
+  } else if (currentType === "ssh") {
     const host = $("#host-field").value.trim();
-    return {
-      ...metadata, type: "ssh", host, username: $("#username-field").value.trim(),
+    Object.assign(source, {
+      type: "ssh", host, username: $("#username-field").value.trim(),
       password: $("#password-field").value, paths: splitPaths($("#ssh-paths-field").value),
-    };
+    });
+  } else {
+    Object.assign(source, { type: "local", paths: splitPaths($("#local-paths-field").value) });
   }
-  return { ...metadata, type: "local", paths: splitPaths($("#local-paths-field").value) };
+  if (editingSourceId) source.id = editingSourceId;
+  return source;
 }
 
-async function loadContexts() {
+async function loadContexts(selectedContext = "", selectedNamespace = "") {
   const contextField = $("#context-field");
   contextField.replaceChildren(new Option("Loading contexts…", ""));
   try {
@@ -218,16 +239,26 @@ async function loadContexts() {
       option.textContent = context.cluster ? `${context.name} · ${context.cluster}` : context.name;
       contextField.add(option);
     }
-    if (data.active) contextField.value = data.active;
-    if (!data.contexts.length) contextField.replaceChildren(new Option("No local contexts found", ""));
+    if (selectedContext && !data.contexts.some((context) => context.name === selectedContext)) {
+      contextField.add(new Option(`${selectedContext} (saved)`, selectedContext));
+    }
+    if (selectedContext) contextField.value = selectedContext;
+    else if (data.active) contextField.value = data.active;
+    if (!data.contexts.length && !selectedContext) {
+      contextField.replaceChildren(new Option("No local contexts found", ""));
+    }
   } catch (error) {
     contextField.replaceChildren(new Option("Could not load kubeconfig", ""));
+    if (selectedContext) {
+      contextField.add(new Option(`${selectedContext} (saved)`, selectedContext));
+      contextField.value = selectedContext;
+    }
     showMessage($("#form-message"), error.message, "error");
   }
-  await loadNamespaces(contextField.value);
+  await loadNamespaces(contextField.value, selectedNamespace);
 }
 
-async function loadNamespaces(context) {
+async function loadNamespaces(context, selectedNamespace = "") {
   const namespaceField = $("#namespace-field");
   namespaceField.replaceChildren(new Option(context ? "Loading namespaces…" : "Choose a context first", ""));
   if (!context) return;
@@ -235,10 +266,20 @@ async function loadNamespaces(context) {
     const data = await api(`/api/namespaces/${encodeURIComponent(context)}`);
     namespaceField.replaceChildren(new Option("Select a namespace", ""));
     for (const namespace of data.namespaces) namespaceField.add(new Option(namespace, namespace));
-    if (data.namespaces.includes("default")) namespaceField.value = "default";
-    if (!data.namespaces.length) namespaceField.replaceChildren(new Option("No namespaces found", ""));
+    if (selectedNamespace && !data.namespaces.includes(selectedNamespace)) {
+      namespaceField.add(new Option(`${selectedNamespace} (saved)`, selectedNamespace));
+    }
+    if (selectedNamespace) namespaceField.value = selectedNamespace;
+    else if (data.namespaces.includes("default")) namespaceField.value = "default";
+    if (!data.namespaces.length && !selectedNamespace) {
+      namespaceField.replaceChildren(new Option("No namespaces found", ""));
+    }
   } catch (error) {
     namespaceField.replaceChildren(new Option("Could not load namespaces", ""));
+    if (selectedNamespace) {
+      namespaceField.add(new Option(`${selectedNamespace} (saved)`, selectedNamespace));
+      namespaceField.value = selectedNamespace;
+    }
     showMessage($("#form-message"), error.message, "error");
   }
 }
@@ -293,16 +334,60 @@ async function loadRemoteNamespaces(context) {
   }
 }
 
+function configureFormMode(source = null) {
+  editingSourceId = source?.id || null;
+  const editing = Boolean(editingSourceId);
+  $(".modal-header .eyebrow").textContent = editing ? "EDIT SOURCE" : "CONNECT A SOURCE";
+  $("#modal-title").textContent = editing ? "Edit source" : "Add a log source";
+  $("#save-source").textContent = editing ? "Save changes →" : "Save source →";
+  for (const tab of document.querySelectorAll(".source-tab")) {
+    tab.disabled = editing && tab.dataset.type !== source.type;
+  }
+  for (const field of [$("#password-field"), $("#remote-kube-password-field")]) {
+    field.required = !editing;
+    field.placeholder = editing ? "Leave blank to keep current password" : "SSH password";
+  }
+}
+
 function openModal() {
+  sourceForm.reset();
+  configureFormMode();
   modalBackdrop.classList.remove("hidden");
   setFormType("kubernetes");
   loadContexts();
   $("#close-modal").focus();
 }
 
+function openEditModal(source) {
+  sourceForm.reset();
+  configureFormMode(source);
+  modalBackdrop.classList.remove("hidden");
+  setFormType(source.type);
+  selectTileIcon(source.icon);
+  $("#source-title-field").value = source.name;
+
+  if (source.type === "kubernetes") {
+    loadContexts(source.context, source.namespace);
+  } else if (source.type === "remote-kubernetes") {
+    $("#remote-kube-host-field").value = source.host;
+    $("#remote-kube-username-field").value = source.username;
+    $("#remote-kube-context-field").replaceChildren(new Option(source.context, source.context));
+    $("#remote-kube-namespace-field").replaceChildren(new Option(source.namespace, source.namespace));
+  } else if (source.type === "ssh") {
+    $("#host-field").value = source.host;
+    $("#username-field").value = source.username;
+    $("#ssh-paths-field").value = source.paths.join("\n");
+  } else {
+    $("#local-paths-field").value = source.paths.join("\n");
+  }
+  $("#source-title-field").focus();
+}
+
 function closeModal() {
   modalBackdrop.classList.add("hidden");
   sourceForm.reset();
+  configureFormMode();
+  setFormType("kubernetes");
   $("#form-message").classList.add("hidden");
 }
 
@@ -323,13 +408,22 @@ async function saveSource(event) {
   event.preventDefault();
   const message = $("#form-message");
   const source = formSource();
+  const isEditing = Boolean(editingSourceId);
   try {
-    await api("/api/test-source", { method: "POST", body: JSON.stringify(source) });
-    const result = await api("/api/sources", { method: "POST", body: JSON.stringify(source) });
-    sources.push(result.source);
+    if (isEditing) {
+      const result = await api(`/api/sources/${encodeURIComponent(editingSourceId)}`, {
+        method: "PUT",
+        body: JSON.stringify(source),
+      });
+      sources = sources.map((item) => item.id === editingSourceId ? result.source : item);
+    } else {
+      await api("/api/test-source", { method: "POST", body: JSON.stringify(source) });
+      const result = await api("/api/sources", { method: "POST", body: JSON.stringify(source) });
+      sources.push(result.source);
+    }
     renderSources();
     closeModal();
-    toast("Source connected and saved");
+    toast(isEditing ? "Source updated" : "Source connected and saved");
   } catch (error) {
     showMessage(message, error.message, "error");
   }
@@ -531,14 +625,7 @@ document.querySelectorAll(".source-tab").forEach((button) => {
   button.addEventListener("click", () => setFormType(button.dataset.type));
 });
 document.querySelectorAll(".icon-choice").forEach((button) => {
-  button.addEventListener("click", () => {
-    currentIcon = button.dataset.icon;
-    document.querySelectorAll(".icon-choice").forEach((choice) => {
-      const active = choice === button;
-      choice.classList.toggle("active", active);
-      choice.setAttribute("aria-pressed", String(active));
-    });
-  });
+  button.addEventListener("click", () => selectTileIcon(button.dataset.icon));
 });
 $("#context-field").addEventListener("change", (event) => loadNamespaces(event.target.value));
 $("#load-remote-contexts").addEventListener("click", loadRemoteContexts);

@@ -68,6 +68,56 @@ class LogStationTests(unittest.TestCase):
         self.assertEqual(stored[0]["name"], "Production")
         self.assertEqual(stored[0]["icon"], "server")
 
+    def test_source_update_preserves_password_when_ssh_target_is_unchanged(self):
+        existing = {
+            "id": "source-id", "type": "ssh", "host": "host", "username": "user",
+            "password": "in-memory-secret", "paths": ["/var/log/old.log"],
+        }
+        updated = logstation.prepare_source_update(existing, {
+            "type": "ssh", "name": "Production", "icon": "server",
+            "host": "host", "username": "user", "password": "",
+            "paths": ["/var/log/new.log"],
+        })
+        self.assertEqual(updated["id"], "source-id")
+        self.assertEqual(updated["password"], "in-memory-secret")
+        self.assertEqual(updated["name"], "Production")
+        self.assertEqual(updated["paths"], ["/var/log/new.log"])
+
+    def test_source_update_allows_missing_saved_password_for_unchanged_target(self):
+        existing = {
+            "id": "source-id", "type": "ssh", "host": "host", "username": "user",
+            "password": "", "paths": ["/var/log/app.log"],
+        }
+        updated = logstation.prepare_source_update(existing, {
+            "type": "ssh", "name": "Production", "icon": "server",
+            "host": "host", "username": "user", "password": "",
+            "paths": ["/var/log/app.log"],
+        })
+        self.assertEqual(updated["password"], "")
+        self.assertTrue(logstation.public_source(updated)["requiresPassword"])
+
+    def test_source_update_requires_password_when_ssh_target_changes(self):
+        existing = {
+            "id": "source-id", "type": "ssh", "host": "old-host", "username": "user",
+            "password": "in-memory-secret", "paths": ["/var/log/app.log"],
+        }
+        with self.assertRaises(logstation.ServiceError) as error:
+            logstation.prepare_source_update(existing, {
+                "type": "ssh", "name": "", "host": "new-host", "username": "user",
+                "password": "", "paths": ["/var/log/app.log"],
+            })
+        self.assertEqual(error.exception.code, "password_required")
+
+    def test_source_update_does_not_change_connection_type(self):
+        existing = {
+            "id": "source-id", "type": "local", "paths": ["/var/log/app.log"],
+        }
+        with self.assertRaises(logstation.ServiceError):
+            logstation.prepare_source_update(existing, {
+                "type": "ssh", "host": "host", "username": "user",
+                "password": "secret", "paths": ["/var/log/app.log"],
+            })
+
     def test_remote_kubernetes_password_is_not_saved(self):
         source = {
             "id": "test-id", "type": "remote-kubernetes", "name": "cluster",

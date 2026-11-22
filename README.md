@@ -31,7 +31,7 @@ The resulting `./logStation` contains the server and web assets. Build it on the
 - **SSH:** Provide a host, username, password, and one absolute log path per line. On first connection, LogStation accepts the host key and adds it to `~/.ssh/known_hosts`; later connections verify it against the saved key and reject changed keys. This trust-on-first-use behavior means you should verify the host key fingerprint through a trusted channel if possible. The password stays in process memory and is never written to the source file. After a restart, enter it again when reconnecting.
 - **Local files:** Enter one readable file path per line on the machine running LogStation.
 
-When adding any source, you can optionally set a custom tile title and choose an icon. If the title is blank, LogStation uses the source's name.
+When adding any source, you can optionally set a custom tile title and choose an icon. If the title is blank, LogStation uses the source's name. Use the edit control on a source tile to update its title, icon, or connection details. When editing an SSH source, leave the password blank to keep the current in-memory password; if LogStation was restarted, enter a password only when changing the SSH host or username, or reconnect later.
 
 Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and local Kubernetes contexts are read with the OS user's permissions.
 

@@ -117,14 +117,14 @@
         </div>
         <div id="remote-kubernetes-fields" class="form-fields hidden">
           <label class="field"><span>Remote host</span><input id="remote-kube-host-field" autocomplete="off" placeholder="192.168.1.20" required></label>
-          <div class="field-row"><label class="field"><span>SSH username</span><input id="remote-kube-username-field" autocomplete="username" placeholder="ubuntu" required></label><label class="field"><span>SSH password</span><input id="remote-kube-password-field" type="password" autocomplete="current-password" placeholder="SSH password" required></label></div>
+          <div class="field-row"><label class="field"><span>SSH username</span><input id="remote-kube-username-field" autocomplete="username" placeholder="ubuntu" required></label><label class="field"><span>SSH password</span><input id="remote-kube-password-field" type="password" autocomplete="current-password" placeholder="SSH password" required><small>When editing, leave blank to keep the current password.</small></label></div>
           <button id="load-remote-contexts" class="secondary-button" type="button">Load remote contexts</button>
           <label class="field"><span>Context / cluster</span><select id="remote-kube-context-field" required><option value="">Connect to load contexts</option></select><small>Uses kubectl and the kubeconfig on the remote host.</small></label>
           <label class="field"><span>Namespace</span><select id="remote-kube-namespace-field" required><option value="">Choose a context first</option></select></label>
         </div>
         <div id="ssh-fields" class="form-fields hidden">
           <label class="field"><span>IP address or hostname</span><input id="host-field" autocomplete="off" placeholder="192.168.1.20" required></label>
-          <div class="field-row"><label class="field"><span>Username</span><input id="username-field" autocomplete="username" placeholder="ubuntu" required></label><label class="field"><span>Password</span><input id="password-field" type="password" autocomplete="current-password" placeholder="SSH password" required></label></div>
+          <div class="field-row"><label class="field"><span>Username</span><input id="username-field" autocomplete="username" placeholder="ubuntu" required></label><label class="field"><span>Password</span><input id="password-field" type="password" autocomplete="current-password" placeholder="SSH password" required><small>When editing, leave blank to keep the current password.</small></label></div>
           <label class="field"><span>Log file paths</span><textarea id="ssh-paths-field" rows="3" placeholder="/var/log/app.log&#10;/var/log/nginx/access.log" required></textarea><small>Enter one absolute path per line. Password stays in memory and isn't saved to disk.</small></label>
         </div>
         <div id="local-fields" class="form-fields hidden">
