@@ -1,46 +1,101 @@
 # LogStation
 
-LogStation is a browser-based log viewer for local files, SSH hosts, and Kubernetes pods. The web UI and server are packaged into one executable.
+<div align="center">
 
-## Run
+**One clean workspace for logs scattered across your machines and clusters.**
 
-Download or build the executable, then start it:
+[![Version](https://img.shields.io/badge/version-1.0.7-2563eb?style=for-the-badge)](VERSION)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-see%20LICENSE-6b7280?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-111827?style=for-the-badge)](#installation)
 
-```sh
+_Watch, filter, and follow logs from local files, SSH servers, and Kubernetes — without switching tools._
+
+</div>
+
+## ✨ What it does
+
+LogStation brings every log source into a focused browser dashboard:
+
+- **Local files** — tail readable files on the machine running LogStation
+- **SSH logs** — securely connect to remote servers and monitor log paths
+- **Kubernetes** — browse contexts and stream pod container logs
+- **Remote Kubernetes** — use a cluster through a remote `kubectl` host
+- **Live controls** — pause, filter, wrap, theme, and adjust the tail length
+
+## 🚀 Quick start
+
+Download a standalone build or run it directly:
+
+```bash
 ./logStation --start --port=3000
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The server binds to loopback only; it is intended for a browser on the same machine.
+Open **http://127.0.0.1:3000** in your browser.
 
-## Build the standalone binary
+> LogStation listens only on loopback by default, so it is designed for a browser on the same machine.
 
-Python 3.10+ and pip are needed only to build. From this directory:
+## 🧩 Connect a source
 
-```sh
+Use **Add source** and choose the connection that fits:
+
+| Source | What you need |
+|:--|:--|
+| **Local files** | One absolute or readable file path per line |
+| **SSH** | Host, username, password, and remote log paths |
+| **Kubernetes** | A kubeconfig context and namespace |
+| **Remote Kubernetes** | SSH access plus `kubectl` and kubeconfig on the remote host |
+
+Source titles and icons are customizable. Live controls include **Pause**, **Filter logs**, **Tail**, **Wrap lines**, **Hide files**, and light/dark themes.
+
+## 📦 Installation
+
+### Standalone executable
+
+Run the build matching your operating system and CPU architecture. No Python installation is required for prebuilt binaries.
+
+### Build from source
+
+```bash
 python3 -m pip install -r requirements.txt
 python3 -m PyInstaller --clean --onefile --name logStation \
   --add-data "web:web" --distpath . logstation.py
 ```
 
-The resulting `./logStation` contains the server and web assets. Build it on the target operating system and CPU architecture.
+Build on the target operating system and CPU architecture. The resulting executable contains both the server and web interface.
 
-## Connect sources
+## 🛠️ Development
 
-- **Kubernetes:** Uses the current OS user's default kubeconfig (`~/.kube/config`) and its contexts. Pick a context and namespace; each pod container is shown as a stream.
-- **Remote Kubernetes:** Enter an SSH host, username, and password, then load and choose a context and namespace from the remote machine. LogStation runs `kubectl` over SSH on that machine, so its installed `kubectl`, kubeconfig, and Kubernetes role are used. The remote host must have `kubectl` installed and available on the SSH user's `PATH`. Its host key follows the same trust-on-first-use verification as SSH sources. The password stays in process memory and is never written to the source file; enter it again after restarting LogStation.
-- **SSH:** Provide a host, username, password, and one absolute log path per line. On first connection, LogStation accepts the host key and adds it to `~/.ssh/known_hosts`; later connections verify it against the saved key and reject changed keys. This trust-on-first-use behavior means you should verify the host key fingerprint through a trusted channel if possible. The password stays in process memory and is never written to the source file. After a restart, enter it again when reconnecting.
-- **Local files:** Enter one readable file path per line on the machine running LogStation.
-
-When adding any source, you can optionally set a custom tile title and choose an icon. If the title is blank, LogStation uses the source's name. Use the edit control on a source tile to update its title, icon, or connection details. When editing an SSH source, leave the password blank to keep the current in-memory password; if LogStation was restarted, enter a password only when changing the SSH host or username, or reconnect later.
-
-Saved source metadata is stored in `~/.logstation/sources.json` with owner-only permissions (or `$LOGSTATION_HOME/sources.json` when that environment variable is set). Local file paths and local Kubernetes contexts are read with the OS user's permissions.
-
-The viewer tails the latest 300 lines by default and polls every 2.5 seconds. Set the **Tail** count in the log toolbar to show between 1 and 10,000 lines; your choice is saved locally. Its height grows with the log output up to 50 lines, then scrolls vertically. Use **Hide files** / **Show files** to collapse or reopen the stream sidebar, and the theme, pause, filter, and **Wrap lines** controls as needed. By default, long lines scroll horizontally; **Wrap lines** toggles wrapping on and off.
-
-## Development
-
-```sh
+```bash
 python3 -m pip install -r requirements.txt
 python3 -m unittest
 python3 logstation.py --start --port=3000
 ```
+
+## 🔐 Security and storage
+
+- SSH passwords are kept in memory only and are never written to disk
+- Saved source metadata lives in `~/.logstation/sources.json`
+- Set `LOGSTATION_HOME` to change the source metadata location
+- Source metadata files are created with owner-only permissions
+- SSH host keys are saved in `~/.ssh/known_hosts` and verified on later connections
+
+## About LogStation
+
+LogStation is a compact, browser-based log viewer that combines local file tails, SSH sessions, Kubernetes container streams, and remote Kubernetes access into one executable.
+
+When it starts, LogStation serves a responsive web dashboard from a local Python HTTP server. Each source is displayed as a tile, while selecting a source reveals its available log streams. The viewer requests the latest lines from the server and refreshes them automatically, making it useful for checking application behavior, deployment output, and infrastructure logs in one place.
+
+The default tail size is **300 lines**, refreshing every **2.5 seconds**. Tail size can be changed from **1 to 10,000 lines** and is saved in the browser. Output is horizontally scrollable by default, with optional line wrapping.
+
+### Kubernetes
+
+For local Kubernetes sources, LogStation uses the operating system user's default kubeconfig and the selected context and namespace. Every container in a matching pod is exposed as an individual stream.
+
+For remote Kubernetes sources, LogStation connects over SSH and runs `kubectl` on the remote machine. That host must have `kubectl` on the SSH user's `PATH`, plus the appropriate kubeconfig and Kubernetes permissions.
+
+### SSH and local logs
+
+SSH sources accept one absolute log path per line. On the first connection, LogStation follows a trust-on-first-use host-key flow and verifies saved keys during later connections.
+
+Local sources read files with the operating system user's permissions. Source metadata can be saved, edited, reordered, themed, and reopened between sessions.
