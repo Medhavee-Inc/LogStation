@@ -79,6 +79,9 @@ python3 logstation.py --start --port=3000
 - Source metadata files are created with owner-only permissions
 - SSH host keys are saved in `~/.ssh/known_hosts` and verified on later connections
 
+## Architecture
+https://github.com/shardulind/LogStation/wiki/LogStation
+
 ## About LogStation
 
 LogStation is a compact, browser-based log viewer that combines local file tails, SSH sessions, Kubernetes container streams, and remote Kubernetes access into one executable.
