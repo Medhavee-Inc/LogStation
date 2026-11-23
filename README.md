@@ -6,8 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.7-2563eb?style=for-the-badge)](VERSION)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-see%20LICENSE-6b7280?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-111827?style=for-the-badge)](#installation)
+[![Platform](https://img.shields.io/badge/platform-Linux%20x86--64-blue?style=for-the-badge)](#installation)
 
 _Watch, filter, and follow logs from local files, SSH servers, and Kubernetes — without switching tools._
 
