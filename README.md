@@ -47,6 +47,9 @@ Use **Add source** and choose the connection that fits:
 
 Source titles and icons are customizable. Live controls include **Pause**, **Filter logs**, **Tail**, **Wrap lines**, **Hide files**, and light/dark themes.
 
+<img width="1728" height="729" alt="image" src="https://github.com/user-attachments/assets/cb1ebee9-dd9b-4d49-86b4-5816be7c0a72" />
+
+
 ## 📦 Installation
 
 ### Standalone executable
