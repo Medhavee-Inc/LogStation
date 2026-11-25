@@ -42,6 +42,7 @@ tasks:
     desc: Build a standalone binary for the current machine
     cmds:
       - mkdir -p dist
+      - rm -rf dist/logStation-{{.PLATFORM}}-*
       - |
         VERSION=$(cat VERSION 2>/dev/null || echo "0.1.0")
         case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
