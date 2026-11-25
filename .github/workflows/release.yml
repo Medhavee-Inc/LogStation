@@ -17,8 +17,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare:
+    name: Prepare ${{ inputs.bump }} release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out release branch
         uses: actions/checkout@v4
@@ -44,8 +47,92 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Create release
+      - name: Bump version and push tag
+        id: version
         env:
           BUMP: ${{ inputs.bump }}
+        run: |
+          task bump BUMP="$BUMP"
+          version="$(cat VERSION)"
+          git add VERSION
+          git commit -m "Release v${version}"
+          git tag "v${version}"
+          git push origin HEAD --follow-tags
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            platform: x86-64
+            separator: ":"
+            extension: ""
+          - name: Windows
+            os: windows-latest
+            platform: x86-64
+            separator: ";"
+            extension: ".exe"
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.prepare.outputs.version }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build executable
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+          DATA_SEPARATOR: ${{ matrix.separator }}
+        run: |
+          mkdir -p dist
+          python -m PyInstaller --clean --onefile \
+            --name "logStation-${PLATFORM}-${VERSION}${{ matrix.extension }}" \
+            --add-data "web${DATA_SEPARATOR}web" \
+            --distpath dist \
+            logstation.py
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: logStation-${{ matrix.name }}-${{ needs.prepare.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: logStation-*-${{ needs.prepare.outputs.version }}
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: task release BUMP="$BUMP"
+        run: |
+          version="${{ needs.prepare.outputs.version }}"
+          gh release create "v${version}" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "LogStation v${version}" \
+            --generate-notes
