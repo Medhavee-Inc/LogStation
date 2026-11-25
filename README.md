@@ -55,6 +55,7 @@ Source titles and icons are customizable. Live controls include **Pause**, **Fil
 ### Standalone executable
 
 Run the build matching your operating system and CPU architecture. No Python installation is required for prebuilt binaries.
+The Windows executable starts the web server when opened and shows a confirmation dialog with its URL. If startup fails, it shows an error dialog. On other platforms, run the executable with `--start`.
 
 ### Build from source
 

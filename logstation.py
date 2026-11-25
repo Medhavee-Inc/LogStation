@@ -32,6 +32,19 @@ class ServiceError(Exception):
         self.code = code
 
 
+def is_windows_executable():
+    return sys.platform == "win32" and getattr(sys, "frozen", False)
+
+
+def show_windows_startup_dialog(message, error=False):
+    import ctypes
+
+    icon = 0x10 if error else 0x40
+    ctypes.windll.user32.MessageBoxW(
+        None, message, APP_NAME, icon | 0x10000
+    )
+
+
 def data_dir():
     return Path(os.environ.get("LOGSTATION_HOME", Path.home() / ".logstation"))
 
@@ -675,15 +688,38 @@ def main():
     parser = argparse.ArgumentParser(description="A universal browser-based log viewer.")
     parser.add_argument("--start", action="store_true", help="Start the LogStation web server.")
     parser.add_argument("--port", type=int, default=3000, help="HTTP port (default: 3000).")
-    args = parser.parse_args()
+    argv = None
+    windows_executable = is_windows_executable()
+    if windows_executable:
+        argv = sys.argv[1:]
+        if "--start" not in argv:
+            argv.insert(0, "--start")
+    args = parser.parse_args(argv)
     if not args.start:
         parser.error("Use --start to run LogStation.")
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535.")
-    load_sources()
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    try:
+        load_sources()
+        server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    except (OSError, RuntimeError) as exc:
+        if windows_executable:
+            show_windows_startup_dialog(
+                f"Could not start LogStation at http://127.0.0.1:{args.port}.\n\n"
+                f"{exc}\n\nThe port may already be in use.",
+                error=True,
+            )
+        raise
     server.daemon_threads = True
-    print(f"{APP_NAME} is ready at http://127.0.0.1:{args.port}", flush=True)
+    url = f"http://127.0.0.1:{args.port}"
+    print(f"{APP_NAME} is ready at {url}", flush=True)
+    if windows_executable:
+        threading.Thread(
+            target=show_windows_startup_dialog,
+            args=(f"LogStation is running at {url}.\n\n"
+                  "Keep this window open while you use the server.",),
+            daemon=True,
+        ).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

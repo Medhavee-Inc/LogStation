@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,50 @@ import paramiko
 
 
 class LogStationTests(unittest.TestCase):
+    def test_windows_executable_starts_without_explicit_start_flag(self):
+        dialog_shown = threading.Event()
+        with (
+            patch.object(logstation.sys, "platform", "win32"),
+            patch.object(logstation.sys, "frozen", True, create=True),
+            patch.object(logstation.sys, "argv", ["logStation.exe"]),
+            patch.object(logstation, "load_sources"),
+            patch.object(logstation, "ThreadingHTTPServer") as server,
+            patch.object(
+                logstation,
+                "show_windows_startup_dialog",
+                side_effect=lambda *args, **kwargs: dialog_shown.set(),
+            ) as dialog,
+        ):
+            logstation.main()
+
+        server.assert_called_once_with(("127.0.0.1", 3000), logstation.Handler)
+        server.return_value.serve_forever.assert_called_once_with()
+        self.assertTrue(dialog_shown.wait(1))
+        dialog.assert_called_once_with(
+            "LogStation is running at http://127.0.0.1:3000.\n\n"
+            "Keep this window open while you use the server."
+        )
+
+    def test_windows_executable_shows_dialog_when_startup_fails(self):
+        with (
+            patch.object(logstation.sys, "platform", "win32"),
+            patch.object(logstation.sys, "frozen", True, create=True),
+            patch.object(logstation.sys, "argv", ["logStation.exe"]),
+            patch.object(logstation, "load_sources"),
+            patch.object(
+                logstation, "ThreadingHTTPServer", side_effect=OSError("port in use")
+            ),
+            patch.object(logstation, "show_windows_startup_dialog") as dialog,
+        ):
+            with self.assertRaisesRegex(OSError, "port in use"):
+                logstation.main()
+
+        dialog.assert_called_once_with(
+            "Could not start LogStation at http://127.0.0.1:3000.\n\n"
+            "port in use\n\nThe port may already be in use.",
+            error=True,
+        )
+
     def test_tail_returns_last_300_lines(self):
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as file:
             file.write("\n".join(f"line {number}" for number in range(305)))
