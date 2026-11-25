@@ -57,7 +57,7 @@ jobs:
           git add VERSION
           git commit -m "Release v${version}"
           git tag "v${version}"
-          git push origin HEAD --follow-tags
+          git push origin HEAD "refs/tags/v${version}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
   build:
